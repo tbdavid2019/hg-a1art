@@ -70,6 +70,8 @@ FastAPI is mounted at `/api/generate`.
 
 Swagger UI: visit `/docs` (OpenAPI JSON at `/openapi.json`).
 
+List profiles: `/api/profiles` (returns `default`, `profiles`, and profile values from `.env`; protected by `PROXY_API_KEY` if set).
+
 Request body:
 ```json
 {

@@ -495,6 +495,10 @@ class GenerateResponse(BaseModel):
     images: List[str]
     raw: Dict
 
+class ProfilesResponse(BaseModel):
+    default: str
+    profiles: List[str]
+    values: Dict[str, Dict[str, str]]
 
 @fastapi_app.post(
     "/api/generate",
@@ -529,6 +533,16 @@ def api_generate(payload: GenerateRequest, _auth=Depends(require_proxy_key)):
         user_id=f"api-{profile_name}",
     )
     return GenerateResponse(status=status_text, images=images or [], raw=raw_payload)
+
+
+@fastapi_app.get(
+    "/api/profiles",
+    response_model=ProfilesResponse,
+    summary="List available profiles and defaults",
+    tags=["a1.art"],
+)
+def api_profiles(_auth=Depends(require_proxy_key)):
+    return ProfilesResponse(default=DEFAULT_PROFILE, profiles=PROFILE_NAMES, values=PROFILE_MAP)
 
 
 app = gr.mount_gradio_app(fastapi_app, demo, path="/")
