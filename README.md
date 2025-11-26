@@ -12,6 +12,10 @@ python app.py          # 啟動 uvicorn + Gradio
 
 開啟 Gradio 網頁，允許攝影機，拍照或上傳圖片，選擇 Profile 後提交即可。
 
+### Proxy API 金鑰（可選）
+
+若要保護 `/api/generate`，在 `.env` 設定 `PROXY_API_KEY=你的值`，呼叫時在 header 帶 `X-API-KEY: 你的值`。預設空值不檢查，方便本機開發。
+
 ## Profiles（.env）
 
 - 用 `A1_PROFILES` 列出 profile，例如：`A1_PROFILES=DEFAULT,ALT`
@@ -23,7 +27,7 @@ python app.py          # 啟動 uvicorn + Gradio
 
 ---
 
-Gradio app that captures a webcam photo, sends it to the a1.art API, polls for results, and keeps a per-user (per-profile) history on disk. Also exposes a FastAPI endpoint so other apps can trigger the same flow.
+Gradio app that captures a webcam photo, sends it to the a1.art API, polls for results, and keeps a per-user (per-profile) history on disk. Also exposes a FastAPI endpoint so other apps can trigger the same flow. The proxy follows the official flow: upload image to `/images/upload` to obtain `imageUrl`/`path`, then call `/images/generate` with those values.
 
 ## Setup
 
@@ -35,6 +39,10 @@ python app.py          # starts uvicorn with Gradio mounted
 
 Open the Gradio URL, allow webcam access, capture or upload an image, pick a profile, and submit.
 
+### Proxy API key (optional)
+
+To protect `/api/generate`, set `PROXY_API_KEY` in `.env` and send `X-API-KEY: <value>` with requests. Empty means no check (local dev).
+
 ## API endpoint for other apps
 
 FastAPI is mounted at `/api/generate`.
@@ -45,8 +53,8 @@ Request body:
 ```json
 {
   "profile": "DEFAULT",          // optional, defaults to first profile
-  "image_base64": "data:image/png;base64,...",  // required
-  "description": "optional prompt"
+  "image_base64": "data:image/png;base64,...",  // required (or "image")
+  "description": "optional prompt"              // sent as [{ "id": "description", "value": "..." }]
 }
 ```
 
@@ -63,3 +71,11 @@ Response:
 
 - History is stored under `history.json` plus per-profile images under `history/`. Gradio sessions are separated by browser tab and profile.
 - The code tries to extract image URLs from the task response; the raw JSON response is shown so you can adjust parsing if the API response shape differs.
+
+## a1.art 接通流程（附件說明）
+
+1. 準備 API key：在 `.env` 的 profiles 填好 `A1_API_KEY`（或各 profile 的 `A1_API_KEY_<NAME>`）。本地 proxy 若有開 `PROXY_API_KEY`，額外在請求 header 帶 `X-API-KEY`。
+2. 上傳圖片到 a1.art：proxy 會將 Gradio 上傳/拍攝的圖檔 POST 至 `https://a1.art/open-api/v1/a1/images/upload`，header 帶 `apiKey=<你的 a1.art key>`。成功回傳 `imageUrl` 與 `path`。
+3. 呼叫生成：拿上一步的 `imageUrl`/`path`，組成 payload（含 `appId`、`versionId`、`cnet.id` 等 profile 參數，以及描述會轉成 `[{ "id": "description", "value": "<你的描述>" }]`），POST 至 `https://a1.art/open-api/v1/a1/images/generate`，同樣 header 帶 `apiKey=<你的 a1.art key>`。
+4. 輪詢結果：proxy 會用回傳的 `taskId` GET `https://a1.art/open-api/v1/a1/tasks/{taskId}` 直到完成或逾時，並嘗試從 `data.images` / `data.result` / `data.imageUrl` 中取出圖片網址。
+5. History：每個 Gradio session + profile 的輸入圖與結果 URL 會存到 `history/` 與 `history.json`，只保留在本地。
