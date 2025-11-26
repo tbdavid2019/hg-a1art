@@ -43,6 +43,27 @@ Open the Gradio URL, allow webcam access, capture or upload an image, pick a pro
 
 To protect `/api/generate`, set `PROXY_API_KEY` in `.env` and send `X-API-KEY: <value>` with requests. Empty means no check (local dev).
 
+## Docker
+
+Build (x64 linux tested):
+```bash
+docker build -t a1art-app .
+```
+
+Run with your `.env` (env-file or mount) and map port 7860:
+```bash
+# Option A: use env-file
+docker run --rm -p 7860:7860 --env-file .env a1art-app
+
+# Option B: mount .env and persist history
+docker run --rm -p 7860:7860 \
+  --env-file .env \
+  -v "$(pwd)/history:/app/history" \
+  a1art-app
+```
+
+Open `http://127.0.0.1:7860/`. Change port with `-e PORT=...` and `-p ...:...` if needed. Profiles/API keys come from env; set `PROXY_API_KEY` if you want to require `X-API-KEY` for `/api/generate`.
+
 ## API endpoint for other apps
 
 FastAPI is mounted at `/api/generate`.
